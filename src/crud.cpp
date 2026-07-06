@@ -221,9 +221,8 @@ void remover_filme() {
         fclose(f_dados);
         return;
     }
-
-    // CORREÇÃO AQUI: 
-    // Avançamos o ponteiro passando pelo id_filme (sizeof(int)) para apontar exatamente para f.titulo[0]
+    
+    // Avança o ponteiro passando pelo id_filme (sizeof(int)) para apontar exatamente para f.titulo[0]
     fseek(f_dados, offset_filme + sizeof(int), SEEK_SET);
     
     char marcador = '*';
