@@ -26,8 +26,6 @@ int main() {
             case 2:
             case 3:
             case 4:
-                // Como a sua buscar_filme() interna já gerencia o menu de opções (ID, Diretor, Gênero),
-                // redirecionamos as opções 2, 3 e 4 diretamente para ela.
                 buscar_filme();
                 break;
             case 5:
