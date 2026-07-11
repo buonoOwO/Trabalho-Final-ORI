@@ -42,7 +42,7 @@ int main() {
                 menu_exibir_led();
                 break;
             case 9:
-                cout << "[Arvore B] Funcionalidade a ser integrada futuramente.\n";
+                menu_exibir_arvore();
                 break;
             case 10:
                 cout << "[Indices Secundarios] Funcionalidade a ser integrada futuramente.\n";
