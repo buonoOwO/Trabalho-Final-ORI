@@ -86,6 +86,9 @@ void cadastrar_filme() {
 
     fclose(f_dados);
 
+    inserir_indice_diretor(f.diretor, f.id_filme);
+    inserir_indice_genero(f.genero, f.id_filme);
+
     cout << "Filme gravado com sucesso no offset: " << target_offset << "!\n";
 }
 
@@ -177,6 +180,10 @@ void atualizar_filme() {
         return;
     }
 
+    char diretor_antigo[50], genero_antigo[30];
+    strcpy(diretor_antigo, f.diretor);
+    strcpy(genero_antigo, f.genero);
+
     cout << "Novo Titulo (Atual: " << f.titulo << "): ";
     cin.getline(f.titulo, 100);
     cout << "Novo Diretor (Atual: " << f.diretor << "): ";
@@ -191,6 +198,15 @@ void atualizar_filme() {
     fseek(f_dados, offset_atual, SEEK_SET);
     fwrite(&f, sizeof(Filme), 1, f_dados);
     fclose(f_dados);
+
+    if (strcmp(diretor_antigo, f.diretor) != 0) {
+        remover_indice_diretor(diretor_antigo, f.id_filme);
+        inserir_indice_diretor(f.diretor, f.id_filme);
+    }
+    if (strcmp(genero_antigo, f.genero) != 0) {
+        remover_indice_genero(genero_antigo, f.id_filme);
+        inserir_indice_genero(f.genero, f.id_filme);
+    }
 
     cout << "Filme atualizado com sucesso!\n";
 }
@@ -239,6 +255,9 @@ void remover_filme() {
     inserir_na_led(offset_filme);
 
     fclose(f_dados);
+
+    remover_indice_diretor(f.diretor, f.id_filme);
+    remover_indice_genero(f.genero, f.id_filme);
 
     cout << "Filme com ID " << id << " removido e adicionado a LED com sucesso.\n";
 }
