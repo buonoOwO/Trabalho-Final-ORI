@@ -2,6 +2,7 @@
 #include <limits>
 #include "../include/funcoes.h"
 #include "../include/crud.h"
+#include "../include/led.h"
 
 using namespace std;
 
@@ -38,7 +39,7 @@ int main() {
                 listar_filme();
                 break;
             case 8:
-                cout << "[LED] Funcionalidade sob responsabilidade do outro integrante da equipe.\n";
+                menu_exibir_led();
                 break;
             case 9:
                 cout << "[Arvore B] Funcionalidade a ser integrada futuramente.\n";
