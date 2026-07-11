@@ -4,6 +4,7 @@
 #include <vector> 
 #include "../include/crud.h"
 #include "../include/filme.h"
+#include "../include/led.h"
 
 using namespace std;
 
@@ -65,11 +66,16 @@ void cadastrar_filme() {
     cout << "Opiniao/Comentario: ";
     cin.getline(f.opiniao, 300);
 
-    // Sempre insere no final do arquivo (sem LED por enquanto)
-    fseek(f_dados, 0, SEEK_END);
-    long target_offset = ftell(f_dados);
+    // Tenta reaproveitar um espaco livre da LED antes de crescer o arquivo
+    long target_offset = obter_espaco_livre();
 
-    // Gravar o Filme inteiro (todos os seus bytes fixos)
+    if (target_offset == -1) {
+        // Nao havia espaco livre reaproveitavel: insere no final do arquivo
+        fseek(f_dados, 0, SEEK_END);
+        target_offset = ftell(f_dados);
+    }
+
+    fseek(f_dados, target_offset, SEEK_SET);
     fwrite(&f, sizeof(Filme), 1, f_dados);
 
     // Atualizar o próximo ID no cabeçalho
@@ -228,9 +234,12 @@ void remover_filme() {
     char marcador = '*';
     fwrite(&marcador, sizeof(char), 1, f_dados); // Agora sim gravamos o '*' no byte correto!
 
+    // Registra o offset liberado na LED (dados/LED.dat) para reaproveitamento futuro
+    inserir_na_led(offset_filme);
+
     fclose(f_dados);
 
-    cout << "Filme com ID " << id << " marcado como excluido com sucesso.\n";
+    cout << "Filme com ID " << id << " removido e adicionado a LED com sucesso.\n";
 }
 
 void listar_filme() {
