@@ -5,6 +5,7 @@
 #include "../include/crud.h"
 #include "../include/filme.h"
 #include "../include/led.h"
+#include "../include/indices.h"
 
 using namespace std;
 
