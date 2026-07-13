@@ -45,10 +45,6 @@ run: $(TARGET) | $(DADOS_DIR)
 # Recompila do zero
 rebuild: clean all
  
-# Remove binarios e objetos (mantem os .dat em dados/)
-clean:
-	rm -rf $(OBJ_DIR) $(TARGET)
- 
 # Remove tudo, incluindo os arquivos de dados persistidos
 clean-dados:
 	rm -f $(DADOS_DIR)/*.dat
