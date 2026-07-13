@@ -3,12 +3,14 @@
 #include "../include/funcoes.h"
 #include "../include/crud.h"
 #include "../include/led.h"
-
+#include "../include/arvoreb.h"
+#include "../include/indices.h"
+ 
 using namespace std;
-
+ 
 int main() {
     int opcao;
-
+ 
     do {
         exibir_menu();
         
@@ -19,7 +21,7 @@ int main() {
             continue;
         }
         cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Limpa o buffer após ler o número
-
+ 
         switch(opcao) {
             case 1:
                 cadastrar_filme();
@@ -45,7 +47,7 @@ int main() {
                 menu_exibir_arvore();
                 break;
             case 10:
-                cout << "[Indices Secundarios] Funcionalidade a ser integrada futuramente.\n";
+                menu_indices_secundarios();
                 break;
             case 0:
                 cout << "Encerrando o sistema...\n";
@@ -53,8 +55,8 @@ int main() {
             default:
                 cout << "Opcao invalida!\n";
         }
-
+ 
     } while(opcao != 0);
-
+ 
     return 0;
 }

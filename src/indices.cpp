@@ -2,20 +2,20 @@
 #include <cstring>
 #include <cstdio>
 #include "../include/indices.h"
-
+ 
 using namespace std;
-
+ 
 static const char* ARQ_INDICE_DIRETOR = "dados/IndiceDiretor.dat";
 static const char* ARQ_LISTA_DIRETOR  = "dados/ListaDiretor.dat";
 static const char* ARQ_INDICE_GENERO  = "dados/IndiceGenero.dat";
 static const char* ARQ_LISTA_GENERO   = "dados/ListaGenero.dat";
-static const char* ARQ_DADOS_FILMES   = "dados/filmes.dat";
-
+static const char* ARQ_DADOS_FILMES   = "dados/Filmes.dat";
+ 
 static long alocar_no_lista(FILE* f_lista, NoLista novo_no) {
     CabecalhoLista cab;
     rewind(f_lista);
     fread(&cab, sizeof(CabecalhoLista), 1, f_lista);
-
+ 
     long offset_no;
     if (cab.topo_led != -1) {
         offset_no = cab.topo_led;
@@ -27,34 +27,34 @@ static long alocar_no_lista(FILE* f_lista, NoLista novo_no) {
         fseek(f_lista, 0, SEEK_END);
         offset_no = ftell(f_lista);
     }
-
+ 
     fseek(f_lista, offset_no, SEEK_SET);
     fwrite(&novo_no, sizeof(NoLista), 1, f_lista);
-
+ 
     rewind(f_lista);
     fwrite(&cab, sizeof(CabecalhoLista), 1, f_lista);
-
+ 
     return offset_no;
 }
-
+ 
 //Marca um nó como livre e o empilha no topo da LED
 static void liberar_no_lista(FILE* f_lista, long offset_no) {
     CabecalhoLista cab;
     rewind(f_lista);
     fread(&cab, sizeof(CabecalhoLista), 1, f_lista);
-
+ 
     NoLista no_livre;
     no_livre.id_filme = -1;
     no_livre.proximo  = cab.topo_led;
-
+ 
     fseek(f_lista, offset_no, SEEK_SET);
     fwrite(&no_livre, sizeof(NoLista), 1, f_lista);
-
+ 
     cab.topo_led = offset_no;
     rewind(f_lista);
     fwrite(&cab, sizeof(CabecalhoLista), 1, f_lista);
 }
-
+ 
 static void inicializar_arquivo_indice(const char* caminho) {
     FILE* f = fopen(caminho, "rb");
     if (!f) {
@@ -64,7 +64,7 @@ static void inicializar_arquivo_indice(const char* caminho) {
         fclose(f);
     }
 }
-
+ 
 static void inicializar_arquivo_lista(const char* caminho) {
     FILE* f = fopen(caminho, "rb");
     if (!f) {
@@ -79,17 +79,17 @@ static void inicializar_arquivo_lista(const char* caminho) {
         fclose(f);
     }
 }
-
+ 
 void inicializar_indices_secundarios() {
     inicializar_arquivo_indice(ARQ_INDICE_DIRETOR);
     inicializar_arquivo_lista(ARQ_LISTA_DIRETOR);
     inicializar_arquivo_indice(ARQ_INDICE_GENERO);
     inicializar_arquivo_lista(ARQ_LISTA_GENERO);
 }
-
+ 
 void inserir_indice_diretor(const char* diretor, int id_filme) {
     inicializar_indices_secundarios();
-
+ 
     FILE* f_idx   = fopen(ARQ_INDICE_DIRETOR, "rb+");
     FILE* f_lista = fopen(ARQ_LISTA_DIRETOR, "rb+");
     if (!f_idx || !f_lista) {
@@ -98,11 +98,11 @@ void inserir_indice_diretor(const char* diretor, int id_filme) {
         if (f_lista) fclose(f_lista);
         return;
     }
-
+ 
     IndiceDiretor entrada;
     long offset_entrada = -1;
     bool encontrado = false;
-
+ 
     rewind(f_idx);
     while (fread(&entrada, sizeof(IndiceDiretor), 1, f_idx) == 1) {
         if (strcmp(entrada.diretor, diretor) == 0) {
@@ -111,14 +111,14 @@ void inserir_indice_diretor(const char* diretor, int id_filme) {
             break;
         }
     }
-
+ 
     long antigo_primeiro = encontrado ? entrada.primeiro : -1;
-
+ 
     NoLista novo_no;
     novo_no.id_filme = id_filme;
     novo_no.proximo  = antigo_primeiro;
     long offset_novo_no = alocar_no_lista(f_lista, novo_no);
-
+ 
     if (encontrado) {
         entrada.primeiro = offset_novo_no;
         fseek(f_idx, offset_entrada, SEEK_SET);
@@ -130,14 +130,14 @@ void inserir_indice_diretor(const char* diretor, int id_filme) {
         fseek(f_idx, 0, SEEK_END);
         fwrite(&entrada, sizeof(IndiceDiretor), 1, f_idx);
     }
-
+ 
     fclose(f_idx);
     fclose(f_lista);
 }
-
+ 
 vector<int> buscar_indice_diretor(const char* diretor) {
     vector<int> ids;
-
+ 
     FILE* f_idx   = fopen(ARQ_INDICE_DIRETOR, "rb");
     FILE* f_lista = fopen(ARQ_LISTA_DIRETOR, "rb");
     if (!f_idx || !f_lista) {
@@ -145,7 +145,7 @@ vector<int> buscar_indice_diretor(const char* diretor) {
         if (f_lista) fclose(f_lista);
         return ids;
     }
-
+ 
     IndiceDiretor entrada;
     bool encontrado = false;
     while (fread(&entrada, sizeof(IndiceDiretor), 1, f_idx) == 1) {
@@ -154,7 +154,7 @@ vector<int> buscar_indice_diretor(const char* diretor) {
             break;
         }
     }
-
+ 
     if (encontrado) {
         long offset_atual = entrada.primeiro;
         while (offset_atual != -1) {
@@ -165,12 +165,12 @@ vector<int> buscar_indice_diretor(const char* diretor) {
             offset_atual = no.proximo;
         }
     }
-
+ 
     fclose(f_idx);
     fclose(f_lista);
     return ids;
 }
-
+ 
 void remover_indice_diretor(const char* diretor, int id_filme) {
     FILE* f_idx   = fopen(ARQ_INDICE_DIRETOR, "rb+");
     FILE* f_lista = fopen(ARQ_LISTA_DIRETOR, "rb+");
@@ -179,7 +179,7 @@ void remover_indice_diretor(const char* diretor, int id_filme) {
         if (f_lista) fclose(f_lista);
         return;
     }
-
+ 
     IndiceDiretor entrada;
     long offset_entrada = -1;
     bool encontrado = false;
@@ -190,15 +190,15 @@ void remover_indice_diretor(const char* diretor, int id_filme) {
             break;
         }
     }
-
+ 
     if (!encontrado) { fclose(f_idx); fclose(f_lista); return; }
-
+ 
     //Percorre guardando o offset do nó anterior, para religar a lista depois
     long offset_anterior = -1;
     long offset_atual = entrada.primeiro;
     NoLista no_atual;
     bool achou_no = false;
-
+ 
     while (offset_atual != -1) {
         fseek(f_lista, offset_atual, SEEK_SET);
         fread(&no_atual, sizeof(NoLista), 1, f_lista);
@@ -206,9 +206,9 @@ void remover_indice_diretor(const char* diretor, int id_filme) {
         offset_anterior = offset_atual;
         offset_atual = no_atual.proximo;
     }
-
+ 
     if (!achou_no) { fclose(f_idx); fclose(f_lista); return; }
-
+ 
     if (offset_anterior == -1) {
         entrada.primeiro = no_atual.proximo;
         fseek(f_idx, offset_entrada, SEEK_SET);
@@ -221,16 +221,16 @@ void remover_indice_diretor(const char* diretor, int id_filme) {
         fseek(f_lista, offset_anterior, SEEK_SET);
         fwrite(&no_anterior, sizeof(NoLista), 1, f_lista);
     }
-
+ 
     liberar_no_lista(f_lista, offset_atual);
-
+ 
     fclose(f_idx);
     fclose(f_lista);
 }
-
+ 
 void inserir_indice_genero(const char* genero, int id_filme) {
     inicializar_indices_secundarios();
-
+ 
     FILE* f_idx   = fopen(ARQ_INDICE_GENERO, "rb+");
     FILE* f_lista = fopen(ARQ_LISTA_GENERO, "rb+");
     if (!f_idx || !f_lista) {
@@ -239,11 +239,11 @@ void inserir_indice_genero(const char* genero, int id_filme) {
         if (f_lista) fclose(f_lista);
         return;
     }
-
+ 
     IndiceGenero entrada;
     long offset_entrada = -1;
     bool encontrado = false;
-
+ 
     rewind(f_idx);
     while (fread(&entrada, sizeof(IndiceGenero), 1, f_idx) == 1) {
         if (strcmp(entrada.genero, genero) == 0) {
@@ -252,14 +252,14 @@ void inserir_indice_genero(const char* genero, int id_filme) {
             break;
         }
     }
-
+ 
     long antigo_primeiro = encontrado ? entrada.primeiro : -1;
-
+ 
     NoLista novo_no;
     novo_no.id_filme = id_filme;
     novo_no.proximo  = antigo_primeiro;
     long offset_novo_no = alocar_no_lista(f_lista, novo_no);
-
+ 
     if (encontrado) {
         entrada.primeiro = offset_novo_no;
         fseek(f_idx, offset_entrada, SEEK_SET);
@@ -271,14 +271,14 @@ void inserir_indice_genero(const char* genero, int id_filme) {
         fseek(f_idx, 0, SEEK_END);
         fwrite(&entrada, sizeof(IndiceGenero), 1, f_idx);
     }
-
+ 
     fclose(f_idx);
     fclose(f_lista);
 }
-
+ 
 vector<int> buscar_indice_genero(const char* genero) {
     vector<int> ids;
-
+ 
     FILE* f_idx   = fopen(ARQ_INDICE_GENERO, "rb");
     FILE* f_lista = fopen(ARQ_LISTA_GENERO, "rb");
     if (!f_idx || !f_lista) {
@@ -286,7 +286,7 @@ vector<int> buscar_indice_genero(const char* genero) {
         if (f_lista) fclose(f_lista);
         return ids;
     }
-
+ 
     IndiceGenero entrada;
     bool encontrado = false;
     while (fread(&entrada, sizeof(IndiceGenero), 1, f_idx) == 1) {
@@ -295,7 +295,7 @@ vector<int> buscar_indice_genero(const char* genero) {
             break;
         }
     }
-
+ 
     if (encontrado) {
         long offset_atual = entrada.primeiro;
         while (offset_atual != -1) {
@@ -306,12 +306,12 @@ vector<int> buscar_indice_genero(const char* genero) {
             offset_atual = no.proximo;
         }
     }
-
+ 
     fclose(f_idx);
     fclose(f_lista);
     return ids;
 }
-
+ 
 void remover_indice_genero(const char* genero, int id_filme) {
     FILE* f_idx   = fopen(ARQ_INDICE_GENERO, "rb+");
     FILE* f_lista = fopen(ARQ_LISTA_GENERO, "rb+");
@@ -320,7 +320,7 @@ void remover_indice_genero(const char* genero, int id_filme) {
         if (f_lista) fclose(f_lista);
         return;
     }
-
+ 
     IndiceGenero entrada;
     long offset_entrada = -1;
     bool encontrado = false;
@@ -331,14 +331,14 @@ void remover_indice_genero(const char* genero, int id_filme) {
             break;
         }
     }
-
+ 
     if (!encontrado) { fclose(f_idx); fclose(f_lista); return; }
-
+ 
     long offset_anterior = -1;
     long offset_atual = entrada.primeiro;
     NoLista no_atual;
     bool achou_no = false;
-
+ 
     while (offset_atual != -1) {
         fseek(f_lista, offset_atual, SEEK_SET);
         fread(&no_atual, sizeof(NoLista), 1, f_lista);
@@ -346,9 +346,9 @@ void remover_indice_genero(const char* genero, int id_filme) {
         offset_anterior = offset_atual;
         offset_atual = no_atual.proximo;
     }
-
+ 
     if (!achou_no) { fclose(f_idx); fclose(f_lista); return; }
-
+ 
     if (offset_anterior == -1) {
         entrada.primeiro = no_atual.proximo;
         fseek(f_idx, offset_entrada, SEEK_SET);
@@ -361,27 +361,27 @@ void remover_indice_genero(const char* genero, int id_filme) {
         fseek(f_lista, offset_anterior, SEEK_SET);
         fwrite(&no_anterior, sizeof(NoLista), 1, f_lista);
     }
-
+ 
     liberar_no_lista(f_lista, offset_atual);
-
+ 
     fclose(f_idx);
     fclose(f_lista);
 }
-
-
+ 
+ 
 void reconstruir_indices_secundarios() {
     remove(ARQ_INDICE_DIRETOR);
     remove(ARQ_LISTA_DIRETOR);
     remove(ARQ_INDICE_GENERO);
     remove(ARQ_LISTA_GENERO);
     inicializar_indices_secundarios();
-
+ 
     FILE* f_dados = fopen(ARQ_DADOS_FILMES, "rb");
     if (!f_dados) {
         cout << "Arquivo filmes.dat nao encontrado. Nada para indexar.\n";
         return;
     }
-
+ 
     fseek(f_dados, sizeof(Cabecalho), SEEK_SET);
     Filme f;
     int total = 0;
@@ -393,15 +393,15 @@ void reconstruir_indices_secundarios() {
         }
     }
     fclose(f_dados);
-
+ 
     cout << "Indices reconstruidos com sucesso a partir de " << total
          << " filme(s) ativo(s) em filmes.dat.\n";
 }
-
+ 
 void exibir_indice_diretor() {
     FILE* f_idx = fopen(ARQ_INDICE_DIRETOR, "rb");
     if (!f_idx) { cout << "Indice de diretor ainda nao existe.\n"; return; }
-
+ 
     cout << "\n--- INDICE SECUNDARIO: DIRETOR ---\n";
     IndiceDiretor entrada;
     bool tem_algum = false;
@@ -418,11 +418,11 @@ void exibir_indice_diretor() {
     if (!tem_algum) cout << "Nenhum diretor indexado ainda.\n";
     fclose(f_idx);
 }
-
+ 
 void exibir_indice_genero() {
     FILE* f_idx = fopen(ARQ_INDICE_GENERO, "rb");
     if (!f_idx) { cout << "Indice de genero ainda nao existe.\n"; return; }
-
+ 
     cout << "\n--- INDICE SECUNDARIO: GENERO ---\n";
     IndiceGenero entrada;
     bool tem_algum = false;
@@ -439,7 +439,7 @@ void exibir_indice_genero() {
     if (!tem_algum) cout << "Nenhum genero indexado ainda.\n";
     fclose(f_idx);
 }
-
+ 
 void menu_indices_secundarios() {
     int opcao;
     do {
@@ -453,7 +453,7 @@ void menu_indices_secundarios() {
         cout << "Escolha uma opcao: ";
         cin >> opcao;
         cin.ignore();
-
+ 
         if (opcao == 1) {
             char diretor[50];
             cout << "Diretor: ";

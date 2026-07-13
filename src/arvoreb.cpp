@@ -544,10 +544,24 @@ void menu_exibir_arvore() {
     int i;
 
     while (atual != -1) {
+        // SEGURANÇA: Um nó válido nunca pode estar no offset 0 (reservado ao cabeçalho)
+        if (atual < (long)sizeof(struct CabecalhoArvore)) {
+            printf("[Erro] Ponteiro corrompido detectado na estrutura da arvore (%ld).\n", atual);
+            break;
+        }
+
         ler_no(f, atual, &folha);
+
+        // SEGURANÇA: Se num_chaves for inválido devido a corrupção, interrompe para não dar SegFault
+        if (folha.num_chaves < 0 || folha.num_chaves > MAX_CHAVES) {
+            printf("[Erro] No corrompido com numero de chaves invalido (%d).\n", folha.num_chaves);
+            break;
+        }
+
         for (i = 0; i < folha.num_chaves; i++) {
             printf("ID: %d -> Offset no Filmes.dat: %ld\n", folha.chaves[i], folha.dados[i]);
         }
+        
         atual = folha.proxima_folha;
     }
 
