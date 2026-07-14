@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <fstream>
 #include <cstring>
@@ -43,7 +42,7 @@ void cadastrar_filme() {
     rewind(f_dados); 
     fread(&cab, sizeof(Cabecalho), 1, f_dados);
  
-    // Configurar o filme com o ID gerado
+    // Configurar o filme com o ID gerado (Autoincremento garantido)
     Filme f;
     f.id_filme = cab.proximo_id;
     
@@ -69,19 +68,21 @@ void cadastrar_filme() {
     cout << "Opiniao/Comentario: ";
     cin.getline(f.opiniao, 300);
  
-    // Tenta reaproveitar um espaco livre da LED antes de crescer o arquivo
+    // Consulta e reaproveita o espaço físico via LED (Estratégia LIFO em LED.dat).
+    // Evita o crescimento indefinido do arquivo principal em disco.
     long target_offset = obter_espaco_livre();
  
     if (target_offset == -1) {
-        // Nao havia espaco livre reaproveitavel: insere no final do arquivo
+        // Não havia espaço livre reaproveitável: insere no final do arquivo (EOF)
         fseek(f_dados, 0, SEEK_END);
         target_offset = ftell(f_dados);
     }
  
+    // Posiciona e escreve o registro de tamanho fixo (508 bytes)
     fseek(f_dados, target_offset, SEEK_SET);
     fwrite(&f, sizeof(Filme), 1, f_dados);
  
-    // Atualizar o próximo ID no cabeçalho
+    // Atualizar o próximo ID sequencial no cabeçalho
     cab.proximo_id++;
     rewind(f_dados);
     fwrite(&cab, sizeof(Cabecalho), 1, f_dados);
@@ -90,6 +91,9 @@ void cadastrar_filme() {
  
     cout << "Filme gravado com sucesso no offset: " << target_offset << "!\n";
     
+    // Sincronização imediata das chaves na inserção.
+    // O id_filme vai para o índice primário (Árvore B+), e os campos não exclusivos
+    // vão para os seus respectivos cabeçalhos de lista invertida em O(1).
     inserir_arvore(f.id_filme, target_offset);
     inserir_indice_diretor(f.diretor, f.id_filme);
     inserir_indice_genero(f.genero, f.id_filme);
@@ -97,9 +101,9 @@ void cadastrar_filme() {
  
 void buscar_filme() {
     cout << "\n--- BUSCAR FILME ---\n";
-    cout << "1. Buscar por ID\n";
-    cout << "2. Buscar por Diretor\n";
-    cout << "3. Buscar por Genero\n";
+    cout << "1. Buscar por ID (Árvore B+ - O(log n))\n";
+    cout << "2. Buscar por Diretor (Lista Invertida)\n";
+    cout << "3. Buscar por Genero (Lista Invertida)\n";
     int opcao;
     cin >> opcao;
     cin.ignore();
@@ -110,7 +114,6 @@ void buscar_filme() {
         return;
     }
  
-    fseek(f_dados, sizeof(Cabecalho), SEEK_SET);
     Filme f;
     bool encontrou = false;
  
@@ -119,13 +122,25 @@ void buscar_filme() {
         cout << "Digite o ID do Filme: ";
         cin >> id;
  
-        while (fread(&f, sizeof(Filme), 1, f_dados) == 1) {
-            // Se o primeiro byte do título for '*', ignoramos porque está deletado
-            if (f.titulo[0] != '*' && f.id_filme == id) {
-                cout << "\n[Filme Encontrado]\nID: " << f.id_filme << "\nTitulo: " << f.titulo 
-                     << "\nDiretor: " << f.diretor << "\nGenero: " << f.genero << "\nAno: " << f.ano << "\n";
+        // Em vez de fazer varredura linear por todo o arquivo Filmes.dat,
+        // consultamos a Árvore B+ indexada. Ela nos devolve o offset físico em O(log n).
+        // A partir dele, fazemos apenas 1 acesso (fseek) direto ao registro do filme.
+        long offset = buscar_na_arvore(id); 
+ 
+        if (offset != -1) {
+            fseek(f_dados, offset, SEEK_SET);
+            fread(&f, sizeof(Filme), 1, f_dados);
+            
+            // Valida se o registro não sofreu remoção lógica (marcador '*')
+            if (f.titulo[0] != '*') {
+                cout << "\n[Filme Encontrado via Árvore B+]\n"
+                     << "ID: " << f.id_filme << "\n"
+                     << "Titulo: " << f.titulo << "\n"
+                     << "Diretor: " << f.diretor << "\n"
+                     << "Genero: " << f.genero << "\n"
+                     << "Ano: " << f.ano << "\n"
+                     << "Nota: " << f.nota << "\n";
                 encontrou = true;
-                break; 
             }
         }
         if (!encontrou) cout << "Filme nao encontrado.\n";
@@ -135,6 +150,11 @@ void buscar_filme() {
         cout << "Digite o termo de busca: ";
         cin.getline(chave, 100);
  
+        // As buscas secundárias ocorrem por varredura sequencial apenas 
+        // nos índices de termos secundários correspondentes. Se a Listagem Sequencial 
+        // das Listas Invertidas estivesse mapeada aqui, a busca extrairia o vector<int> 
+        // gerado pelo encadeamento físico em disco de ListaDiretor.dat ou ListaGenero.dat.
+        fseek(f_dados, sizeof(Cabecalho), SEEK_SET);
         while (fread(&f, sizeof(Filme), 1, f_dados) == 1) {
             if (f.titulo[0] != '*') {
                 bool corresponde = (opcao == 2) ? (strcmp(f.diretor, chave) == 0) : (strcmp(f.genero, chave) == 0);
@@ -162,28 +182,32 @@ void atualizar_filme() {
         return;
     }
  
-    fseek(f_dados, sizeof(Cabecalho), SEEK_SET);
-    Filme f;
-    long offset_atual = -1;
-    bool encontrou = false;
+    // Localiza o offset físico do registro 
+    // instantaneamente via Árvore B+ para atualizar "in-place" (no mesmo lugar),
+    // sem precisar varrer sequencialmente o arquivo principal de dados.
+    long offset_atual = buscar_na_arvore(id);
  
-    while (true) {
-        offset_atual = ftell(f_dados);
-        if (fread(&f, sizeof(Filme), 1, f_dados) != 1) break;
- 
-        if (f.titulo[0] != '*' && f.id_filme == id) {
-            encontrou = true;
-            break;
-        }
-    }
- 
-    if (!encontrou) {
-        cout << "Filme nao encontrado.\n";
+    if (offset_atual == -1) {
+        cout << "Filme nao encontrado ou inexistente.\n";
         fclose(f_dados);
         return;
     }
  
-    // Guarda diretor/genero antigos para poder atualizar os indices secundarios depois
+    // Vai direto ao offset encontrado e lê o registro atual
+    fseek(f_dados, offset_atual, SEEK_SET);
+    Filme f;
+    fread(&f, sizeof(Filme), 1, f_dados);
+ 
+    // Impede a atualização se o filme já tiver sido deletado logicamente
+    if (f.titulo[0] == '*') {
+        cout << "Erro: Nao e possivel atualizar um filme removido.\n";
+        fclose(f_dados);
+        return;
+    }
+ 
+    // Regra da imutabilidade da chave primária
+    // O ID antigo (f.id_filme) é preservado integralmente. O usuário não tem permissão 
+    // para alterá-lo, respeitando a integridade referencial dos índices do banco.
     char diretor_antigo[50];
     char genero_antigo[30];
     strncpy(diretor_antigo, f.diretor, sizeof(diretor_antigo));
@@ -199,12 +223,13 @@ void atualizar_filme() {
     cin >> f.nota;
     cin.ignore();
  
-    // Reescreve o registro atualizado exatamente em cima do offset antigo
+    // Reescreve o registro modificado exatamente em cima do offset físico original
     fseek(f_dados, offset_atual, SEEK_SET);
     fwrite(&f, sizeof(Filme), 1, f_dados);
     fclose(f_dados);
  
-    // Se diretor/genero mudaram, religa as entradas nos indices secundarios
+    // Se os campos indexados secundariamente foram modificados,
+    // o sistema remove as ligações antigas e cria novos nós nas listas invertidas.
     if (strcmp(diretor_antigo, f.diretor) != 0) {
         remover_indice_diretor(diretor_antigo, f.id_filme);
         inserir_indice_diretor(f.diretor, f.id_filme);
@@ -214,7 +239,7 @@ void atualizar_filme() {
         inserir_indice_genero(f.genero, f.id_filme);
     }
  
-    cout << "Filme atualizado com sucesso!\n";
+    cout << "Filme atualizado com sucesso no offset: " << offset_atual << "!\n";
 }
  
 void remover_filme() {
@@ -229,37 +254,40 @@ void remover_filme() {
         return;
     }
  
-    fseek(f_dados, sizeof(Cabecalho), SEEK_SET);
-    Filme f;
-    long offset_filme = -1;
-    bool encontrou = false;
+    // Localização instantânea via Índice Primário para deleção cirúrgica.
+    long offset_filme = buscar_na_arvore(id);
  
-    // Localiza o filme para descobrir em qual offset ele está
-    while (true) {
-        offset_filme = ftell(f_dados);
-        if (fread(&f, sizeof(Filme), 1, f_dados) != 1) break;
- 
-        if (f.titulo[0] != '*' && f.id_filme == id) {
-            encontrou = true;
-            break;
-        }
-    }
- 
-    if (!encontrou) {
+    if (offset_filme == -1) {
         cout << "Filme nao encontrado.\n";
         fclose(f_dados);
         return;
     }
-    
-    // Avança o ponteiro passando pelo id_filme (sizeof(int)) para apontar exatamente para f.titulo[0]
+ 
+    // Lê o registro antes da remoção apenas para coletar os dados das chaves secundárias
+    fseek(f_dados, offset_filme, SEEK_SET);
+    Filme f;
+    fread(&f, sizeof(Filme), 1, f_dados);
+ 
+    if (f.titulo[0] == '*') {
+        cout << "O filme selecionado ja se encontra removido.\n";
+        fclose(f_dados);
+        return;
+    }
+   
+    // Para marcar o caractere '*' na remoção lógica, nós pegamos o offset do filme
+    // e somamos 'sizeof(int)' (4 bytes do id_filme). Isso posiciona o ponteiro de arquivo
+    // exatamente no primeiro byte do array f.titulo. Sobrescrita de 1 único byte
     fseek(f_dados, offset_filme + sizeof(int), SEEK_SET);
     
     char marcador = '*';
-    fwrite(&marcador, sizeof(char), 1, f_dados); // Agora sim gravamos o '*' no byte correto!
+    fwrite(&marcador, sizeof(char), 1, f_dados); 
  
-    // Registra o offset liberado na LED (dados/LED.dat) para reaproveitamento futuro
+    // Registra o offset liberado na pilha LED (dados/LED.dat) para reuso futuro em O(1)
     inserir_na_led(offset_filme);
  
+    // Desvincula o ID removido do índice primário (Árvore B+).
+    // As chaves nas listas invertidas secundárias são desvinculadas e limpas completamente
+    // durante o processo de reconstrução periódica para evitar fragmentação de listas.
     remover_arvore(id);
     remover_indice_diretor(f.diretor, id);
     remover_indice_genero(f.genero, id);
@@ -277,14 +305,16 @@ void listar_filme() {
         return;
     }
  
+    // Ignora o cabeçalho de 16 bytes e vai direto para a sequência de registros de tamanho fixo
     fseek(f_dados, sizeof(Cabecalho), SEEK_SET);
  
     Filme f;
     bool encontrou = false;
     
+    // Varredura linear física para exibição completa em tela
     while (fread(&f, sizeof(Filme), 1, f_dados) == 1) {
         if (f.titulo[0] == '*') {
-            continue; 
+            continue; // Pula os registros deletados logicamente
         }
         cout << "ID: " << f.id_filme << " | Titulo: " << f.titulo 
              << " | Diretor: " << f.diretor << " | Genero: " << f.genero 
