@@ -18,7 +18,10 @@ void inicializar_arquivo_se_nao_existir() {
     FILE* f = fopen(ARQUIVO_DADOS, "rb");
     if (!f) {
         f = fopen(ARQUIVO_DADOS, "wb+");
-        if (f) {
+        if (f) {\
+            // O cabeçalho ocupa 16 bytes devido ao padding/alinhamento de memória.
+            // O campo 'proximo_id' (int = 4 bytes) é seguido por um padding automático de 4 bytes 
+            // antes do campo 'offset_led' (long = 8 bytes) em sistemas de 64 bits.
             Cabecalho cab = {1, -1}; 
             fwrite(&cab, sizeof(Cabecalho), 1, f);
             fclose(f);
