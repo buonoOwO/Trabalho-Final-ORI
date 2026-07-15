@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <cstddef>
 #include "../include/filme.h"
 #include "../include/led.h"
 #include "../include/arvoreb.h"
@@ -271,7 +272,8 @@ void remover_filme() {
     // Como exigido pelas especificações do trabalho (LED), a remoção não compacta o arquivo imediatamente.
     // Nós voltamos para o início do registro em disco (fseek para offset_filme) e sobrescrevemos APENAS 
     // o primeiro byte do campo título com o caractere asterisco '*'.
-    fseek(f_dados, offset_filme, SEEK_SET);
+    long offset_titulo = offset_filme + offsetof(Filme, titulo);
+    fseek(f_dados, offset_titulo, SEEK_SET);
 
     char marcador = '*';
     fwrite(&marcador, sizeof(char), 1, f_dados); // Agora sim gravamos o '*' no byte correto!
